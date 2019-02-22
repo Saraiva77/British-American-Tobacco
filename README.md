@@ -8,5 +8,5 @@
 ..* Brazil
 ![alt text][logo]
 
-[logo]: <img src="https://github.com/Saraiva77/British-American-Tobacco/blob/master/Images/Brazil%20logo.jpg" width="200" height="400" /> 
+[logo]: https://github.com/Saraiva77/British-American-Tobacco/blob/master/Images/Brazil%20logo.jpg width="200" height="400" /> 
 
