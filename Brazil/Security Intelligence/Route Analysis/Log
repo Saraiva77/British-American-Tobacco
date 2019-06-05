@@ -6,3 +6,6 @@ Primeira versão contempla as seguintes funcionalidades:
 2-Mapa com rotas plotadas com diferentes cores e label de "PLACA DATA"
 3-Local do evento com icon personalizado e popup "ID DATA MOTORISTA"
 
+<-Route Analysis 1.1->
+1-Nova aba "Data Explorer" inserida
+2-Aba realiza filtro dinamico no SWS database por UF.Evento e Placa.
