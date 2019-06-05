@@ -27,20 +27,14 @@ require(plotrix)
 require(RColorBrewer)
 require(randomcoloR)
 require(leaflet.extras)
-
+require(DT)
 options(shiny.maxRequestSize = 9*1024^2)
 options(warn=-1)
 shinyServer(function(input, output, session){
-    
+idinfo <- showNotification(paste("Wait while application is loading... This may take a while",sep=""),type= "message", duration = NULL)
+  
     output$contents <- renderTable({
-        # input$file1 will be NULL initially. After the user selects
-        # and uploads a file, it will be a data frame with 'name',
-        # 'size', 'type', and 'datapath' columns. The 'datapath'
-        # column will contain the local filenames where the data can
-        # be found.
-        
         inFile <- input$file1
-        
         if (is.null(inFile))
             return(NULL)
 
@@ -48,16 +42,15 @@ shinyServer(function(input, output, session){
                  sep = input$sep, quote = input$quote)
     })
  
-idinfo <- showNotification(paste("Loading data and generating map... This may take a while",sep=""),type= "message", duration = NULL)
 info_roubo <- data.frame(read_excel("./data/SWS Database.xlsx",1))
+info_roubo$Data <- as.Date.POSIXct(info_roubo$Data)
 
-####Formatação da Hora
+####FormataÃ§Ã£o da Hora
 info_roubo$Hora <- format(info_roubo$Hora, "%H:%M")
 info_roubo$Data.Transbordo <- format(info_roubo$Data.Transbordo, "%H:%M")
 
-####Separação da coluna concatenada de veiculos envolvidos
+####SeparaÃ§Ã£o da coluna concatenada de veiculos envolvidos
 info_roubo <- cSplit(info_roubo, 'Veiculos.SC..Placa.Rota.Tipo.', sep=";", type.convert=FALSE)
-
 roubos_RJ <- info_roubo 
 
 ####Limpeza da variavel de rotas
@@ -66,25 +59,26 @@ CE_code <- gsub(" APOIO","",CE_code)
 CE_code <- gsub("FROTA","",CE_code)
 CE_code <- gsub(" ","",CE_code)
 
-placas <- roubos_RJ$Veiculos.SC..Placa.Rota.Tipo._01
-
+placas <- as.data.frame(cbind(roubos_RJ$Veiculos.SC..Placa.Rota.Tipo._01,roubos_RJ$UF.Evento))
+colnames(placas)<- c("Veiculo.Roubado","Estado")
 info_colabs <- strsplit(roubos_RJ$Envolvidos..Nome.Mat.CPF.Cargo.Tipo.,";")
 info_colabs <- unlist(lapply(info_colabs, `[[`, 1)) # 1 para apenas nomes dos colabs
 roubos_RJ$Colabor <- info_colabs
 
 roubos_RJ$Veiculos.SC..Placa.Rota.Tipo._02 <- CE_code
 roubos_RJ$Veiculos.SC..Placa.Rota.Tipo._01 <- paste(roubos_RJ$Veiculos.SC..Placa.Rota.Tipo._01,roubos_RJ$Data,sep=" ")
-roubos_RJ <<- roubos_RJ
+roubos_RJ <<- cbind(roubos_RJ,placas$Veiculo.Roubado)
 
 #################################################
 #################################################
-
 output$mymap <- renderLeaflet({
-  
+
   inFile <- input$file1
   coords<-read.csv(inFile$datapath, header = input$header,
                    sep = input$sep, quote = input$quote)
-listadata<-str_split(coords$DATA,"/")
+  #coords<- read.csv("./data/CSV BANGU.csv",sep=",", header=T)
+
+listadata<-str_split(coords$Data,"/")
 
 dataf=data.frame(matrix(data = NA,nrow=nrow(coords),ncol=3))
 for(i in 1:nrow(coords)){
@@ -93,9 +87,9 @@ for(i in 1:nrow(coords)){
     }
 }
 
-coords$DATA<-as.Date(paste(dataf$X3,dataf$X2,dataf$X1,sep="-"),"%Y-%m-%d")
+coords$Data<-as.Date(paste(dataf$X3,dataf$X2,dataf$X1,sep="-"),"%Y-%m-%d")
 
-depara <- paste(coords$PLACA,coords$DATA,sep=" ")
+depara <- paste(coords$Placa,coords$Data,sep=" ")
 nomes <-unique(depara)
 coords=cbind(coords,depara)
 roubo_select=c()
@@ -120,21 +114,21 @@ corfim=data.frame(cbind(nomes,cor))
 colnames(corfim)<- c("depara","cor")
 
 coords<-merge(corfim,coords)
-coords$LAT<-as.numeric(sub(",", ".", coords$LAT, fixed = TRUE))
-coords$LONG<-as.numeric(sub(",", ".", coords$LONG, fixed = TRUE))
+coords$Latitude<-as.numeric(sub(",", ".", coords$Latitude, fixed = TRUE))
+coords$Longitude<-as.numeric(sub(",", ".", coords$Longitude, fixed = TRUE))
 
 coords<-coords[complete.cases(coords), ]
 
 
-latrota <- na.omit(as.numeric(sub(",", ".", coords$LAT, fixed = TRUE)))
-longrota <- na.omit(as.numeric(sub(",", ".", coords$LONG, fixed = TRUE)))
+latrota <- na.omit(as.numeric(sub(",", ".", coords$Latitude, fixed = TRUE)))
+longrota <- na.omit(as.numeric(sub(",", ".", coords$Longitude, fixed = TRUE)))
 
 intervalo2=data.frame(table(coords$depara))
 intervalo= c()
 intervalo= as.vector(intervalo2[,2])
 
-df <- data.frame(lat=coords$LAT,
-                 lon=coords$LONG,
+df <- data.frame(lat=coords$Latitude,
+                 lon=coords$Longitude ,
                  group=coords$depara,
                  col=rep(hcl.colors(length(intervalo),palette = "viridis",alpha=NULL),times=intervalo))
 
@@ -154,13 +148,28 @@ markers <- paste(roubo_select$ID,roubo_select$Veiculos.SC..Placa.Rota.Tipo._01,r
 #local de roubo#
   map3 <- addMarkers(map3,data=roubo_select,lng =~Longitude.Evento, lat =~Latitude.Evento,icon=local_roubo,
                            popup=markers)
-  
-  
 map3
 
 })
 
-
 removeNotification(idinfo)
+
+
+observeEvent(input$uf, {
+  placa_f = filter(tabela_roubos,tabela_roubos$UF.Evento %in% input$uf)
+  updateSelectInput(session, "placa",
+                    label = "placa",
+                    choices = unique(placa_f$Veiculo.Roubado))
 })
 
+
+output$tabela <- DT::renderDataTable({
+  df <- tabela_roubos %>%
+    filter(
+      is.null(input$uf) | UF.Evento %in% input$uf,
+      is.null(input$placa) | Veiculo.Roubado %in% input$placa
+    )
+    DT::datatable(df)
+})
+
+})
