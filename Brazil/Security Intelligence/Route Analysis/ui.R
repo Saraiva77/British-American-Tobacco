@@ -51,7 +51,7 @@ info_primaria=roubos_RJ[,c(1:12,18)]
 tabela_roubos=cbind(info_primaria,info_colabs,placas)
 
 bootstrapPage(theme = shinytheme("united"),
-navbarPage("Route Analysis 1.0",id="nav",
+navbarPage("Route Analysis 1.1",id="nav",
     tabPanel("Data",
         div(class="outer",  
             sidebarLayout(
